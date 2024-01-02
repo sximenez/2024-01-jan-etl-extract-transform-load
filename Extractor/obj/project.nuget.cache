@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "nIjuKCqu8L0NS34GmyxBQekRogCwd3YS6cWm2cRgkL9hRa2kAK/KwG7R3WrY2YiN4dQSnwdUwVgInATI53AtKw==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\steven.jimenez\\source\\repos\\2024-01-jan-etl-extract-transform-load\\Extractor\\Extractor.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\steven.jimenez\\.nuget\\packages\\system.configuration.configurationmanager\\8.0.0\\system.configuration.configurationmanager.8.0.0.nupkg.sha512",
+    "C:\\Users\\steven.jimenez\\.nuget\\packages\\system.data.oledb\\8.0.0\\system.data.oledb.8.0.0.nupkg.sha512",
+    "C:\\Users\\steven.jimenez\\.nuget\\packages\\system.diagnostics.performancecounter\\8.0.0\\system.diagnostics.performancecounter.8.0.0.nupkg.sha512",
+    "C:\\Users\\steven.jimenez\\.nuget\\packages\\system.security.cryptography.protecteddata\\8.0.0\\system.security.cryptography.protecteddata.8.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
