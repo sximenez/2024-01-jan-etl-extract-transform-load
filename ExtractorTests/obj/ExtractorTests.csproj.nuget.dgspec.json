@@ -44,6 +44,10 @@
         "net6.0": {
           "targetAlias": "net6.0",
           "dependencies": {
+            "EPPlus": {
+              "target": "Package",
+              "version": "[7.0.5, )"
+            },
             "MSTest.TestAdapter": {
               "target": "Package",
               "version": "[2.2.10, )"
@@ -55,6 +59,10 @@
             "Microsoft.NET.Test.Sdk": {
               "target": "Package",
               "version": "[17.5.0, )"
+            },
+            "System.Data.Odbc": {
+              "target": "Package",
+              "version": "[8.0.0, )"
             },
             "coverlet.collector": {
               "target": "Package",
@@ -117,6 +125,14 @@
         "net6.0": {
           "targetAlias": "net6.0",
           "dependencies": {
+            "EPPlus": {
+              "target": "Package",
+              "version": "[7.0.5, )"
+            },
+            "System.Data.Odbc": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
             "System.Data.OleDb": {
               "target": "Package",
               "version": "[8.0.0, )"

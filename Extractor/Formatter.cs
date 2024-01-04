@@ -2,33 +2,38 @@
 {
     public class Formatter
     {
-        // Properties (a formatter has formatted data).
-        public List<(string, int, List<string>, List<string>)> FormattedData { get; set; }
+        // Properties.
+        public List<string> FormattedData { get; set; }
 
-        public Formatter(List<(string, int, List<string>, List<string>)> data)
+        // Constructor.
+        public Formatter()
         {
-            FormattedData = new();
-
-            try
-            {
-                FormattedData = FormatData(data);
-            }
-            catch (Exception exception)
-            {
-                // Catch and wrap.
-                throw new Exception($"Formatting error here: {exception.StackTrace}", exception);
-            }
+            FormattedData = new List<string>();
         }
 
-        public List<(string, int, List<string>, List<string>)> FormatData(List<(string, int, List<string>, List<string>)> data)
+        public void FormatData(List<string> data, int numberOfColumns)
         {
-            //foreach (string e in data)
-            //{
-            //    char[] stringArray = e.ToCharArray();
-            //    FormattedData.Add(string.Join("", stringArray.Reverse()));
-            //}
+            if (data.Count > 0)
+            {
+                for (int i = 0; i < data.Count; i++)
+                {
+                    if (i % numberOfColumns == 1)
+                    {
+                        var words = data[i].Split(' ')
+                            .Select(word => word.ToLower())
+                            .Select(word => new string(word.Reverse().ToArray()))
+                            .Select(word => char.ToUpper(word[0]) + word[1..]);
 
-            return FormattedData;
+                        var result = string.Join(" ", words);
+                        FormattedData.Add(result);
+                    }
+
+                    else
+                    {
+                        FormattedData.Add(data[i]);
+                    }
+                }
+            }
         }
     }
 }

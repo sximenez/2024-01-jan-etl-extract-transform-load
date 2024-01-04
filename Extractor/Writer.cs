@@ -1,49 +1,51 @@
-﻿using System.Runtime.Serialization.Formatters;
+﻿using OfficeOpenXml;
 
 namespace Extractor
 {
     public class Writer
     {
-        // Properties (a Writer has a success state).
-        public bool IsSuccessful { get; set; }
+        // Properties.
+        public bool HasWrittenFile { get; set; }
 
-        public Writer(List<(string, int, List<string>, List<string>)> loaderData)
+        // Constructor.
+        public Writer()
         {
-            try
-            {
-                WriteSchema(loaderData);
-            }
-            catch (Exception exception)
-            {
-                // Catch and wrap.
-                throw new Exception($"Formatting error here: {exception.StackTrace}", exception);
-            }
+            HasWrittenFile = false;
         }
 
-        public void WriteSchema(List<(string, int, List<string>, List<string>)> loaderData)
+        public void WriteFile(string outputPath, List<string> headers, List<string> formattedData, int numberOfColumns)
         {
-            using (StreamWriter writer = new StreamWriter(@"C:\Users\steven.jimenez\Downloads\output.txt"))
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            FileInfo outputFile = new FileInfo(outputPath);
+
+            if (outputFile.Exists)
             {
+                outputFile.Delete();
+            }
 
-                writer.WriteLine($"LOG DATE: {DateTime.Now}");
-                //writer.WriteLine($"DB PATH: {Extractor.DatabasePath}");
-                writer.WriteLine($"TABLE TOTAL (non-empty): {loaderData.Count}");
-                writer.WriteLine("--------------------------------------\n");
+            using (ExcelPackage package = new ExcelPackage(outputFile))
+            {
+                ExcelWorksheet worksheet = package.Workbook.Worksheets.Add("Sheet1");
 
-                foreach (var item in loaderData)
+                int row;
+                int col;
+                
+                for (int i = 0; i < headers.Count; i++)
                 {
-                    writer.WriteLine($"[{item.Item1}][{item.Item2}]");
-                    writer.WriteLine($"---");
-
-                    for (int i = 0; i < item.Item3.Count; i++)
-                    {
-                        writer.WriteLine($"{item.Item3[i]}: {item.Item4[i]}");
-                    }
-
-                    writer.WriteLine($"\n--------------------\n");
+                    row = i / numberOfColumns + 1;
+                    col = i % numberOfColumns + 1;
+                    worksheet.Cells[row, col].Value = headers[i];
                 }
 
-                IsSuccessful = true;
+                for (int i = 0; i < formattedData.Count; i++)
+                {
+                    row = i / numberOfColumns + 2;
+                    col = i % numberOfColumns + 1;
+                    worksheet.Cells[row, col].Value = formattedData[i];
+                }
+
+                package.Save();
+                HasWrittenFile = true;
             }
         }
     }
