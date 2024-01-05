@@ -13,7 +13,7 @@ namespace Extractor
             HasWrittenFile = false;
         }
 
-        public void WriteFile(string outputPath, List<string> headers, List<string> formattedData, int numberOfColumns)
+        public void WriteFile(string outputPath, List<string> headers, List<object> formattedData, int numberOfColumns)
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             FileInfo outputFile = new FileInfo(outputPath);

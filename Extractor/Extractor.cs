@@ -4,7 +4,6 @@ namespace Extractor
 {
     public class Extractor
     {
-
         // Properties (Object.Properties).
         public Connector Connector { get; set; }
         public Retriever Retriever { get; set; }

@@ -1,5 +1,26 @@
 # Extract, Transform, Load (ETL)
 
+  - [Intro](#intro)
+  - [The source 'DB'](#the-source-db)
+  - [The target 'DB'](#the-target-db)
+  - [1. Connector: read the file](#1.-connector-read-the-file)
+    - [Providers](#providers)
+      - [ODBC](#odbc)
+    - [Coding the connector](#coding-the-connector)
+  - [2. Retriever: get the data](#2.-retriever-get-the-data)
+    - [Coding the retriever](#coding-the-retriever)
+  - [3. Formatter: apply changes](#3.-formatter-apply-changes)
+    - [Coding the formatter](#coding-the-formatter)
+  - [4. Writer: output the formatted data](#4.-writer-output-the-formatted-data)
+    - [Coding the writer](#coding-the-writer)
+  - [Result](#result)
+  - [Refactoring](#refactoring)
+    - [Retriever](#retriever)
+    - [Unit tests](#unit-tests)
+  - [Connector: adding OleDb](#connector-adding-oledb)
+    - [OleDb](#oledb)
+    - [OleDB in more detail](#oledb-in-more-detail)
+
 ## Intro
 
 In data handling, `ETL` is a common approach:
@@ -38,7 +59,6 @@ graph LR
 Operations
 1[Input, initial state] --> Operations
 Operations --> 2[Output, final state]
-
 ```
 
 In this exercise, we'll implement the following model to manipulate a simple `.xls` file via a C# program.
@@ -51,7 +71,7 @@ Our objective is to be able to:
 
 ```mermaid
 graph LR
-subgraph Extractor
+subgraph Program
 direction LR
 
 subgraph Extract
@@ -74,7 +94,14 @@ end
 Extract --> Transform --> Load
 ```
 
-## The 'DB'
+```mermaid
+graph RL
+Program -->|Connector| 0[(Source .xls)]
+0 -->|Retriever| Program
+Program -->|Formatter\nWriter| 1[(Target .xlsx)]
+```
+
+## The source 'DB'
 
 Our test database (the `.xls` file) contains the following entries:
 
@@ -91,10 +118,26 @@ Our test database (the `.xls` file) contains the following entries:
 |	9	|	Jeremy Red	|	65	|	CEO	|	140000
 |	10	|	Jasmine Blue	|	70	|	Retired	|	50000
 
+## The target 'DB'
+
+We want to be able to output a new `.xls` file with the name of each entry reversed and capitalized:
+
+|	ID	|	Name	|	Age	|	Occupation	|	Salary	|
+|	---	|	---	|	---	|	---	|	---	|
+|	1	|	Nhoj Eod	|	25	|	Software Engineer	|	70000	|
+|	2	|	Enaj Htims	|	30	|	Data Scientist	|	80000	|
+|	3	|	Mij Nworb	|	35	|	Product Manager	|	90000	|
+|	4	|	Llij Etihw	|	40	|	UX Designer	|	75000	|
+|	5	|	Eoj Neerg	|	45	|	QA Engineer	|	65000	|
+|	6	|	Ynnej Kcalb	|	50	|	CTO	|	120000	|
+|	7	|	Ffej Yerg	|	55	|	CFO	|	130000	|
+|	8	|	Acissej Wolley	|	60	|	COO	|	110000	|
+|	9	|	Ymerej Der	|	65	|	CEO	|	140000	|
+|	10	|	Enimsaj Eulb	|	70	|	Retired	|	50000	|
 
 ## 1. Connector: read the file
 
-We start by defining a connector connecting to the database.
+We start by defining a connector to connect to the database.
 
 ### Providers
 
@@ -122,7 +165,7 @@ In a Windows environment, an ODBC manager is pre-installed (Start -> ODBC).
 
 The ODBC manager uses drivers, or translators between our program and the queried database.
 
-```ps
+```console
 # Check available local drivers via PowerShell.
 Get-OdbcDriver -Name *excel*
 
@@ -138,9 +181,9 @@ Since we will be using an `.xls` file (97-2003), this driver will do.
 
 For other extensions, a driver can be downloaded online.
 
-We can now create a `data source` using this driver to interface with our `.xls` file:
+We can now create a `Data Source` using this driver to interface with our `.xls` file:
 
-```ps
+```console
 # Set up a new Data Source pointing to the file.
 PS C:\> Add-OdbcDsn 
 -Name ExcelETL
@@ -293,7 +336,7 @@ public void OpenConnection()
     {
         Connection.Open();
 
-        // Really test the connection by querying the file.
+        // Really test the connection by querying the file (SQL).
         OdbcCommand command = new("SELECT * FROM [Sheet1$]", Connection);
         OdbcDataReader reader = command.ExecuteReader();
     }
@@ -358,7 +401,6 @@ public void Check_If_Query_Exists()
 [TestMethod()]
 public void Retriever_Should_Execute_Command_When_Query_Exists()
 {
-
     if (DoesFileExist(mockedDatabasePath) && DoesQueryExist(mockedQuery))
     {
         Connector connector = new Connector();
@@ -395,6 +437,7 @@ public class Retriever
     {
         Headers = new List<string>();
         Data = new List<string>();
+        NumberOfColumns = 0;
     }
 
     public void GetData(OdbcConnection connection, string query)
@@ -405,7 +448,6 @@ public class Retriever
 
         if (NumberOfColumns > 0)
         {
-
             for (int i = 0; i < NumberOfColumns; i++)
             {
                 string header = reader.GetName(i);
@@ -414,7 +456,7 @@ public class Retriever
 
             while (reader.Read())
             {
-                for (int i = 0; i < reader.FieldCount; i++)
+                for (int i = 0; i < NumberOfColumns; i++)
                 {
                     Data.Add(reader.GetString(i));
                 }
@@ -427,6 +469,11 @@ public class Retriever
 ```console
 # Output.
 
+ID
+Name
+Age
+Occupation
+Salary
 1.0
 John Doe
 25.0
@@ -464,7 +511,6 @@ Let's now apply the following changes to the name of each entry:
 [TestMethod()]
 public void Formatter_Should_Apply_Changes_When_Input_Exists()
 {
-
     if (DoesFileExist(mockedDatabasePath) && DoesQueryExist(mockedQuery))
     {
         Connector connector = new Connector();
@@ -566,7 +612,6 @@ For this exercise, let's output the formatted data into a new `.xls` file.
 [TestMethod()]
 public void Writer_Should_Create_New_File_When_Formatted_Data_Exists()
 {
-
     if (DoesFileExist(mockedDatabasePath) && DoesQueryExist(mockedQuery))
     {
         Connector connector = new Connector();
@@ -671,57 +716,162 @@ We have successfully output a new file with the desired formatting:
 |	9.0	|	Ymerej Der	|	65.0	|	CEO	|	140000.0	|
 |	10.0	|	Enimsaj Eulb	|	70.0	|	Retired	|	50000.0	|
 
-This is 
+However, integers are being output as strings, which is not accurate.
 
-### OleDB in more detail
+We can try to refactor our code.
 
-```mermaid
----
-title: Flow of data
----
-graph TB
-0[Visual Studio] -->|OleDbConnection| 1[OLEDB Provider]
+## Refactoring
 
-subgraph 1[OLEDB Provider]
-direction TB
-4[SQL Server] --> SQLOLEDB
-Access --> 6["Microsoft.Jet.OLEDB.4.0 (.mdb)"]
-Access --> 7["Microsoft.ACE.OLEDB.12.0 (.accdb)"]
-5["Excel/CSV"] --> 6["Microsoft.Jet.OLEDB.4.0 (.mdb)"]
-5["Excel/CSV"] --> 7["Microsoft.ACE.OLEDB.12.0 (.accdb)"]
-Oracle --> OracleOLEDB.Oracle
-end
+### Retriever
 
-1 --> 2[OLEDB API]
+In our retriever, we can recover data according to its type:
 
-2 --> 3[(DB)]
+```c#
+// Before.
+while (reader.Read())
+{
+    for (int i = 0; i < NumberOfColumns; i++)
+    {
+        Data.Add(reader.GetString(i));
+    }
+}
+
+//After.
+while (reader.Read())
+{
+    for (int i = 0; i < NumberOfColumns; i++)
+    {
+        var data = reader.GetValue(i);
+        if (data.GetType() == typeof(string))
+        {
+            Data.Add(reader.GetString(i));
+        } else
+        {
+            Data.Add(reader.GetDouble(i));
+        }
+    }
+}
 ```
+
+We now obtain the desired output:
+
+|	ID	|	Name	|	Age	|	Occupation	|	Salary	|
+|	---	|	---	|	---	|	---	|	---	|
+|	1	|	Nhoj Eod	|	25	|	Software Engineer	|	70000	|
+|	2	|	Enaj Htims	|	30	|	Data Scientist	|	80000	|
+|	3	|	Mij Nworb	|	35	|	Product Manager	|	90000	|
+|	4	|	Llij Etihw	|	40	|	UX Designer	|	75000	|
+|	5	|	Eoj Neerg	|	45	|	QA Engineer	|	65000	|
+|	6	|	Ynnej Kcalb	|	50	|	CTO	|	120000	|
+|	7	|	Ffej Yerg	|	55	|	CFO	|	130000	|
+|	8	|	Acissej Wolley	|	60	|	COO	|	110000	|
+|	9	|	Ymerej Der	|	65	|	CEO	|	140000	|
+|	10	|	Enimsaj Eulb	|	70	|	Retired	|	50000	|
+
+### Unit tests
+
+We can refactor our unit tests as well to avoid DRY (don't repeat yourself):
+
+```c#
+private string mockedDatabasePath = string.Empty;
+private string mockedQuery = string.Empty;
+private string mockedOutputPath = string.Empty;
+
+private Connector connector;
+private Retriever retriever;
+private Formatter formatter;
+private Writer writer;
+
+[TestInitialize()]
+public void Init()
+{
+    mockedDatabasePath = @"C:\Users\steven.jimenez\source\repos\2024-01-jan-etl-extract-transform-load\Input.xls";
+    mockedQuery = "SELECT * FROM [Sheet1$]";
+    mockedOutputPath = @"C:\Users\steven.jimenez\source\repos\2024-01-jan-etl-extract-transform-load\Output.xlsx";
+
+    connector = new Connector();
+    connector.SetConnectionString(mockedDatabasePath);
+    connector.SetConnection();
+
+    retriever = new Retriever();
+    formatter = new Formatter();
+    writer = new Writer();
+}
+```
+
+## Connector: adding OleDb
+
+Now that our `Odbc` connection is established, let's attempt to add an `Oledb` connection (`Object linking and embedding database`).
+
+### OLEDB
+
+Compared to `Odbc`, `Oledb` is a more recent and flexible C# namespace.
+
+It eliminates the need to declare a `Data Source`.
+
+You declare a provider directly in the `ConnectionString`, which encapsulates the functionality to interface with the database:
+
+```console
+Provider=X;Data Source=Y;
+```
+
+The syntax of the main classes are the same as `Odbc`: `OleDbConnection`, `OleDbCommand`, `OleDbDataReader`:
 
 ```mermaid
 graph TB
 OleDbConnection -->|"Provider=X;Data Source=Y"| 2["Connection.Open()"]
 
-2 --> 3[OleDbCommand] -->|SQL queries| 4[(DB)]
+2 --> 3[OleDbCommand] -->|SQL queries, Data Reader| 4[(DB)]
 ```
 
+#### Providers
 
----
-
-The main class is `OleDbConnection`, which opens a connection using a `connection string` (a provider and a filepath).
+OleDb groups providers according to extension type: 
 
 ```mermaid
-graph LR
-System.Data --> System.Data.OleDb --> OleDbConnection --> ConnectionString
-ConnectionString --> provider
-ConnectionString --> filepath
+graph TB
+0[Program] -->|OleDbConnection| 1[OLEDB Provider]
+
+subgraph 1[OLEDB Provider]
+direction TB
+4["SQL Server (.mdf)"] --> SQLOLEDB
+6["Files before 2007 (.mdb, .xls)"] --> Microsoft.Jet.OLEDB.4.0
+7["Files after 2007 (.accdb, .xlsx)"] --> Microsoft.ACE.OLEDB.12.0
+8["Oracle (.dbf)"] --> OracleOLEDB.Oracle
+end
+
+1 --> 2[OLEDB API]
+
+2 -->|OleDbCommand| 3[(DB)]
 ```
 
-```mermaid
-graph LR
-assembly --> namespace --> 0[class] --> argument
-argument --> provider
-argument --> filepath
+Since our source file uses an old format (`.xls`), we have to use provider `Microsoft.Jet.OLEDB.4.0`.
+
+This provider has to be installed locally on the client.
+
+Once it's ready, it would be great if we could recycle our connector to implement `Oledb`.
+
+Let's try integrating an `interface`.
+
+## Interface: IConnection
+
+Compared to a class, an `interface` contains methods that are not implemented.
+
+When an interface is assigned to a class, the class must implement them, like terms in a contract.
+
+```c#
+public interface IConnection
+{
+    void SetConnectionString(string connectionString);
+    void SetConnection();
+    void OpenConnection();
+}
 ```
+
+To reuse our `Connector` class, let's try using a `strategy` pattern:
+
+
+
 
 
 Yes, an interface would work well for this scenario. You can define an IConnection interface that declares the methods and properties that both OdbcConnection and OleDbConnection have in common. Then, you can create classes that implement this interface and wrap the OdbcConnection and OleDbConnection classes.
