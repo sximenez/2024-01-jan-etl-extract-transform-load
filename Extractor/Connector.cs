@@ -83,7 +83,7 @@ namespace Extractor
                 OleDbDataReader reader = command.ExecuteReader();
             }
 
-            catch (OdbcException ex)
+            catch (OleDbException ex)
             {
                 Console.WriteLine($"Error occured here: {ex.Message}");
             }
@@ -105,38 +105,73 @@ namespace Extractor
         }
 
         // Properties.
-        public IConnection Strategy { get; set; }
         public string ConnectionString { get; set; }
         public IDbConnection Connection { get; set; }
 
-
         // Constructor.
-        public Connector(ConnectorType connectorType)
+        public Connector(ConnectorType connectorType, string databasePath)
+        {
+            ConnectionString = databasePath;
+            Connection = new OdbcConnection();
+
+            switch (connectorType)
+            {
+                case ConnectorType.Odbc:
+                    ConnectionString = SetConnectionString(connectorType, databasePath);
+                    Connection = SetConnection(connectorType);
+                    OpenConnection(Connection);
+                    break;
+
+                case ConnectorType.OleDb:
+                    ConnectionString = SetConnectionString(connectorType, databasePath);
+                    Connection = SetConnection(connectorType);
+                    OpenConnection(Connection);
+                    break;
+            }
+        }
+
+        public string SetConnectionString(ConnectorType connectorType, string databasePath)
         {
             switch (connectorType)
             {
                 case ConnectorType.Odbc:
-                    Strategy = new OdbcStrategy(); break;
+                    ConnectionString = @$"Driver=Microsoft Excel Driver (*.xls);DBQ={databasePath};";
+                    break;
                 case ConnectorType.OleDb:
-                    Strategy = new OleDbStrategy(); break;
+                    ConnectionString = $@"Provider=Microsoft.Jet.OLEDB.4.0;Data Source={databasePath};Extended Properties=Excel 8.0;";
+                    break;
+            }
+            return ConnectionString;
+        }
+
+        public IDbConnection SetConnection(ConnectorType connectorType)
+        {
+            switch (connectorType)
+            {
+                case ConnectorType.Odbc:
+                    Connection = new OdbcConnection(ConnectionString);
+                    break;
+                case ConnectorType.OleDb:
+                    Connection = new OleDbConnection(ConnectionString);
+                    break;
+            }
+            return Connection;
+        }
+
+        public static void OpenConnection(IDbConnection connection)
+        {
+            try
+            {
+                connection.Open();
+                IDbCommand command = connection.CreateCommand();
+                command.CommandText = "SELECT * FROM [Sheet1$]";
+                IDataReader reader = command.ExecuteReader();
             }
 
-            ConnectionString = string.Empty;
-        }
-
-        public void SetConnectionString(string databasePath)
-        {
-            ConnectionString = Strategy.SetConnectionString(databasePath);
-        }
-
-        public void SetConnection()
-        {
-            Connection = Strategy.SetConnection();
-        }
-
-        public void OpenConnection()
-        {
-            Strategy.OpenConnection();
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error occured here: {ex.Message}");
+            }
         }
     }
 

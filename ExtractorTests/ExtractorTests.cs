@@ -16,10 +16,11 @@ namespace Extractor.Tests
         private string mockedQuery = string.Empty;
         private string mockedOutputPath = string.Empty;
 
-        private Connector connector;
-        private Retriever retriever;
-        private Formatter formatter;
-        private Writer writer;
+        private Extractor extractor;
+        //private Connector connector;
+        //private Retriever retriever;
+        //private Formatter formatter;
+        //private Writer writer;
 
         [TestInitialize()]
         public void Init()
@@ -29,13 +30,12 @@ namespace Extractor.Tests
             mockedQuery = "SELECT * FROM [Sheet1$]";
             mockedOutputPath = @"C:\Users\steven.jimenez\source\repos\2024-01-jan-etl-extract-transform-load\Output.xlsx";
 
-            connector = new Connector(mockedconnectorType);
-            connector.SetConnectionString(mockedDatabasePath);
-            connector.SetConnection();
+            //connector = new Connector(mockedconnectorType, mockedDatabasePath);
+            //retriever = new Retriever(connector.Connection, mockedQuery);
+            //formatter = new Formatter(retriever.Data, retriever.NumberOfColumns);
+            //writer = new Writer(mockedOutputPath, retriever.Headers, retriever.Data, retriever.NumberOfColumns);
 
-            retriever = new Retriever();
-            formatter = new Formatter();
-            writer = new Writer();
+            extractor = new Extractor(mockedconnectorType, mockedDatabasePath, mockedQuery, mockedOutputPath);
         }
 
         #endregion Init
@@ -69,12 +69,14 @@ namespace Extractor.Tests
                 }
                 else
                 {
-                    expectedConnectionString = $@"Provider=Microsoft.Jet.OLEDB.4.0;Data Source={mockedDatabasePath};";
+                    expectedConnectionString = $@"Provider=Microsoft.Jet.OLEDB.4.0;Data Source={mockedDatabasePath};Extended Properties=Excel 8.0;";
                 }
 
-                Assert.AreEqual(expectedConnectionString, connector.ConnectionString);
+                string realConnectionString = extractor.Connector.SetConnectionString(mockedconnectorType, mockedDatabasePath);
 
-                Console.WriteLine(connector.ConnectionString);
+                Assert.AreEqual(expectedConnectionString, realConnectionString);
+
+                Console.WriteLine(extractor.Connector.ConnectionString);
             }
 
             else
@@ -88,15 +90,14 @@ namespace Extractor.Tests
         {
             if (DoesFileExist(mockedDatabasePath))
             {
-                using (connector.Connection)
+                using (extractor.Connector.Connection)
                 {
-                    connector.OpenConnection();
-                    Assert.IsTrue(connector.Connection.State == ConnectionState.Open);
+                    Assert.IsTrue(extractor.Connector.Connection.State == ConnectionState.Open);
 
-                    Console.WriteLine(connector.Connection.State);
+                    Console.WriteLine(extractor.Connector.Connection.State);
                 }
-                Assert.IsTrue(connector.Connection.State == ConnectionState.Closed);
-                Console.WriteLine(connector.Connection.State);
+                Assert.IsTrue(extractor.Connector.Connection.State == ConnectionState.Closed);
+                Console.WriteLine(extractor.Connector.Connection.State);
             }
 
             else
@@ -126,12 +127,11 @@ namespace Extractor.Tests
         {
             if (DoesFileExist(mockedDatabasePath) && DoesQueryExist(mockedQuery))
             {
-                using (connector.Connection)
+                using (extractor.Connector.Connection)
                 {
-                    connector.OpenConnection();
-                    retriever.GetData(connector.Connection, mockedQuery);
-                    Console.WriteLine(string.Join("\n", retriever.Headers));
-                    Console.WriteLine(string.Join("\n", retriever.Data));
+                    extractor.Retriever.GetData(extractor.Connector.Connection, mockedQuery);
+                    Console.WriteLine(string.Join("\n", extractor.Retriever.Headers));
+                    Console.WriteLine(string.Join("\n", extractor.Retriever.Data));
                 }
             }
 
@@ -150,15 +150,14 @@ namespace Extractor.Tests
         {
             if (DoesFileExist(mockedDatabasePath) && DoesQueryExist(mockedQuery))
             {
-                using (connector.Connection)
+                using (extractor.Connector.Connection)
                 {
-                    connector.OpenConnection();
-                    retriever.GetData(connector.Connection, mockedQuery);
+                    extractor.Retriever.GetData(extractor.Connector.Connection, mockedQuery);
                 }
 
-                formatter.FormatData(retriever.Data, retriever.NumberOfColumns);
+                extractor.Formatter.FormatData(extractor.Retriever.Data, extractor.Retriever.NumberOfColumns);
 
-                Console.WriteLine(string.Join("\n", formatter.FormattedData));
+                Console.WriteLine(string.Join("\n", extractor.Formatter.FormattedData));
             }
 
             else
@@ -176,17 +175,16 @@ namespace Extractor.Tests
         {
             if (DoesFileExist(mockedDatabasePath) && DoesQueryExist(mockedQuery))
             {
-                using (connector.Connection)
+                using (extractor.Connector.Connection)
                 {
-                    connector.OpenConnection();
-                    retriever.GetData(connector.Connection, mockedQuery);
+                    extractor.Retriever.GetData(extractor.Connector.Connection, mockedQuery);
                 }
 
-                formatter.FormatData(retriever.Data, retriever.NumberOfColumns);
+                extractor.Formatter.FormatData(extractor.Retriever.Data, extractor.Retriever.NumberOfColumns);
 
-                writer.WriteFile(mockedOutputPath, retriever.Headers, formatter.FormattedData, retriever.NumberOfColumns);
+                extractor.Writer.WriteFile(mockedOutputPath, extractor.Retriever.Headers, extractor.Formatter.FormattedData, extractor.Retriever.NumberOfColumns);
 
-                Assert.IsTrue(writer.HasWrittenFile);
+                Assert.IsTrue(extractor.Writer.HasWrittenFile);
             }
 
             else
@@ -196,5 +194,33 @@ namespace Extractor.Tests
         }
 
         #endregion Writer
+
+        #region Extractor
+
+        [TestMethod()]
+        public void Extractor_Should_Output_New_File_When_Triggered()
+        {
+            if (DoesFileExist(mockedDatabasePath) && DoesQueryExist(mockedQuery))
+            {
+                using (extractor.Connector.Connection)
+                {
+                    extractor.Retriever.GetData(extractor.Connector.Connection, mockedQuery);
+                }
+
+                extractor.Formatter.FormatData(extractor.Retriever.Data, extractor.Retriever.NumberOfColumns);
+
+                extractor.Writer.WriteFile(mockedOutputPath, extractor.Retriever.Headers, extractor.Formatter.FormattedData, extractor.Retriever.NumberOfColumns);
+
+                Assert.IsTrue(extractor.Writer.HasWrittenFile);
+            }
+
+            else
+            {
+                Assert.Fail("File doesn't exist.");
+            }
+        }
+
+        #endregion Extractor
+
     }
 }

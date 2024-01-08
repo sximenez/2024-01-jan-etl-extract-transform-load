@@ -6,12 +6,13 @@
         public List<object> FormattedData { get; set; }
 
         // Constructor.
-        public Formatter()
+        public Formatter(List<object> data, int numberOfColumns)
         {
             FormattedData = new List<object>();
+            FormatData(data, numberOfColumns);
         }
 
-        public void FormatData(List<object> data, int numberOfColumns)
+        public List<object> FormatData(List<object> data, int numberOfColumns)
         {
             if (data.Count > 0)
             {
@@ -33,7 +34,11 @@
                         FormattedData.Add(data[i]);
                     }
                 }
+
+                return FormattedData;
             }
+
+            return new List<object>();
         }
     }
 }

@@ -12,11 +12,12 @@ namespace Extractor
         public int NumberOfColumns { get; set; }
 
         // Constructor.
-        public Retriever()
+        public Retriever(IDbConnection connection, string query)
         {
             Headers = new List<string>();
             Data = new List<object>();
             NumberOfColumns = 0;
+            GetData(connection, query);
         }
 
         public void GetData(IDbConnection connection, string query)

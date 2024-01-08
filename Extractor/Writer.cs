@@ -8,9 +8,10 @@ namespace Extractor
         public bool HasWrittenFile { get; set; }
 
         // Constructor.
-        public Writer()
+        public Writer(string outputPath, List<string> headers, List<object> formattedData, int numberOfColumns)
         {
             HasWrittenFile = false;
+            WriteFile(outputPath, headers, formattedData, numberOfColumns);
         }
 
         public void WriteFile(string outputPath, List<string> headers, List<object> formattedData, int numberOfColumns)
@@ -29,7 +30,7 @@ namespace Extractor
 
                 int row;
                 int col;
-                
+
                 for (int i = 0; i < headers.Count; i++)
                 {
                     row = i / numberOfColumns + 1;

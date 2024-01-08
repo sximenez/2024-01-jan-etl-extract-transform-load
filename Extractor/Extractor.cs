@@ -1,68 +1,42 @@
-﻿using System.Data;
+﻿using System.Runtime.Versioning;
 
 namespace Extractor
 {
     public class Extractor
     {
-        // Properties (Object.Properties).
+        // Properties.
         public Connector Connector { get; set; }
         public Retriever Retriever { get; set; }
         public Formatter Formatter { get; set; }
         public Writer Writer { get; set; }
 
-        public static string FindDatabaseExtension(string databasePath)
+        // Constructor.
+        [SupportedOSPlatform("windows")]
+        public Extractor(Connector.ConnectorType connectorType, string databasePath, string query, string outputPath)
         {
-            return databasePath[databasePath.IndexOf(".")..];
+            Connector = new Connector(connectorType, databasePath);
+            Retriever = new Retriever(Connector.Connection, query);
+            Formatter = new Formatter(Retriever.Data, Retriever.NumberOfColumns);
+            Writer = new Writer(outputPath, Retriever.Headers, Formatter.FormattedData, Retriever.NumberOfColumns);
         }
 
-        // Common and effective pattern in programming (dictionary + enum).
-        // Static means it imposes on every instance of Extractor.
-        static Dictionary<string, ConnectionType> connectionTypes = new Dictionary<string, ConnectionType>()
+        // Logger.
+        public static void Log(Writer writer)
         {
-            {".mdb", ConnectionType.OldAccess },
-            {".accdb", ConnectionType.NewAccess },
-        };
-        public enum ConnectionType
-        {
-            OldAccess,
-            NewAccess,
-            SqlServer,
-            Excel
-        }
-        public static ConnectionType FindFormat(string Extension)
-        {
-            if (!connectionTypes.ContainsKey(Extension))
-            {
-                throw new Exception("Unhandled file extension.");
-            }
-
-            return connectionTypes[Extension];
+            Console.WriteLine($"Successful? {(writer.HasWrittenFile ? "YES" : "NO")}");
         }
 
-        // Constructor (an extractor is created and its properties initialized).
-        public Extractor(Connector connector, Retriever retriever, Formatter formatter, Writer writer)
-        {
-            Connector = connector;
-            Retriever = retriever;
-            Formatter = formatter;
-            Writer = writer;
-        }
-
-        // Logger (the run is logged).
-        public static void Log()
-        {
-            //Console.WriteLine($"Successful? {(Writer.IsSuccessful ? "YES" : "NO")}");
-            //Console.WriteLine($"Connection successful? {Connector.Connection.State == ConnectionState.Open}");
-        }
+        // Runner.
+        [SupportedOSPlatform("windows")]
         public static void Main()
         {
-            //Connector connector = new Connector(DatabaseFormat, DatabasePath);
-            //Retriever retriever = new Retriever(connector.Connection, DatabaseFormat);
-            //Formatter formatter = new Formatter(retriever.Schema);
-            //Writer writer = new Writer(retriever.Schema);
+            Connector.ConnectorType connectorType = Connector.ConnectorType.OleDb;
+            string databasePath = @"C:\Users\steven.jimenez\source\repos\2024-01-jan-etl-extract-transform-load\Input.xls";
+            string query = "SELECT * FROM [Sheet1$]";
+            string outputPath = @"C:\Users\steven.jimenez\source\repos\2024-01-jan-etl-extract-transform-load\Output.xlsx";
 
-            //Extractor extractor = new Extractor(connector, retriever, formatter, writer);
-            //extractor.Log();
+            Extractor extractor = new Extractor(connectorType, databasePath, query, outputPath);
+            Log(extractor.Writer);
         }
     }
 }

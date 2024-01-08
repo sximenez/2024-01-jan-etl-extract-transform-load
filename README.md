@@ -1,5 +1,6 @@
 # Extract, Transform, Load (ETL)
 
+<!--TOC-->
   - [Intro](#intro)
   - [The source 'DB'](#the-source-db)
   - [The target 'DB'](#the-target-db)
@@ -18,8 +19,14 @@
     - [Retriever](#retriever)
     - [Unit tests](#unit-tests)
   - [Connector: adding OleDb](#connector-adding-oledb)
-    - [OleDb](#oledb)
-    - [OleDB in more detail](#oledb-in-more-detail)
+    - [OLEDB](#oledb)
+      - [Providers](#providers)
+  - [Interface: IConnection](#interface-iconnection)
+    - [Strategy pattern](#strategy-pattern)
+    - [Simpler implementation with switches](#simpler-implementation-with-switches)
+  - [5. Extractor: binding everything together](#5.-extractor-binding-everything-together)
+  - [Conclusion](#conclusion)
+<!--/TOC-->
 
 ## Intro
 
@@ -862,20 +869,311 @@ When an interface is assigned to a class, the class must implement them, like te
 ```c#
 public interface IConnection
 {
-    void SetConnectionString(string connectionString);
-    void SetConnection();
+    string SetConnectionString(string databasePath);
+    IDbConnection SetConnection();
     void OpenConnection();
 }
 ```
 
-To reuse our `Connector` class, let's try using a `strategy` pattern:
+### Strategy pattern
+
+To reuse our `Connector` class, let's try applying a `strategy` pattern.
+
+We create two separate classes `OdbcStrategy` and `OleDbStrategy`,
+
+then use our `Connector` to filter depending on the `ConnectorType`:
+
+```c#
+// Depending on the ConnectorType, the Connector class invokes a Strategy.
+
+public class Connector
+{
+    // Type of connector.
+    public enum ConnectorType
+    {
+        Odbc,
+        OleDb
+    }
+
+    // Properties.
+    public IConnection Strategy { get; set; }
+    public string ConnectionString { get; set; }
+    public IDbConnection Connection { get; set; }
 
 
+    // Constructor.
+    public Connector(ConnectorType connectorType, string databasePath)
+    {
+        // We initialize our classes to a default Strategy.
+        Strategy = new OdbcStrategy();
+        ConnectionString = databasePath;
+        Connection = new OdbcConnection();
 
+        // Then filter.
+        switch (connectorType)
+        {
+            case ConnectorType.Odbc:
+                Strategy = new OdbcStrategy(); break;
+            case ConnectorType.OleDb:
+                Strategy = new OleDbStrategy(); break;
+        }
+    }
 
+    // Connector methods become generic.
+    public void SetConnectionString()
+    {
+        ConnectionString = Strategy.SetConnectionString(ConnectionString);
+    }
 
-Yes, an interface would work well for this scenario. You can define an IConnection interface that declares the methods and properties that both OdbcConnection and OleDbConnection have in common. Then, you can create classes that implement this interface and wrap the OdbcConnection and OleDbConnection classes.
+    public void SetConnection()
+    {
+        Connection = Strategy.SetConnection();
+    }
 
-In your Connector class, you would then declare Connection as an IConnection. When you need to set the connection, you can create an instance of the appropriate class based on the connectorType and assign it to Connection.
+    public void OpenConnection()
+    {
+        Strategy.OpenConnection();
+    }
+}
+```
 
-This way, you can work with Connection as an IConnection in your code, and the actual type of connection (ODBC or OleDb) is abstracted away. This makes your code more flexible and easier to maintain, as you can add more types of connections in the future without having to change the code that uses Connection.
+```c#
+// Odbc Strategy.
+
+public class OdbcStrategy : IConnection
+{
+    string connectionString = string.Empty;
+    OdbcConnection connection = new();
+
+    public string SetConnectionString(string databasePath)
+    {
+        connectionString = $@"Driver=Microsoft Excel Driver (*.xls);DBQ={databasePath};";
+        return connectionString;
+    }
+
+    public IDbConnection SetConnection()
+    {
+        connection = new OdbcConnection(connectionString);
+        return connection;
+    }
+
+    public void OpenConnection()
+    {
+        try
+        {
+            connection.Open();
+            OdbcCommand command = new("SELECT * FROM [Sheet1$]", connection);
+            OdbcDataReader reader = command.ExecuteReader();
+        }
+
+        catch (OdbcException ex)
+        {
+            Console.WriteLine($"Error occured here: {ex.Message}");
+        }
+    }
+}
+```
+
+```c#
+// OleDb Strategy.
+
+public class OleDbStrategy : IConnection
+{
+    string connectionString = string.Empty;
+    OleDbConnection connection = new();
+
+    public string SetConnectionString(string databasePath)
+    {
+        connectionString = $@"Provider=Microsoft.Jet.OLEDB.4.0;Data Source={databasePath};Extended Properties=Excel 8.0;";
+        return connectionString;
+    }
+
+    public IDbConnection SetConnection()
+    {
+        connection = new OleDbConnection(connectionString);
+        return connection;
+    }
+
+    public void OpenConnection()
+    {
+        try
+        {
+            connection.Open();
+            OleDbCommand command = new("SELECT * FROM [Sheet1$]", connection);
+            OleDbDataReader reader = command.ExecuteReader();
+        }
+
+        catch (OleDbException ex)
+        {
+            Console.WriteLine($"Error occured here: {ex.Message}");
+        }
+    }
+}
+```
+
+Our generic `Connector` can now apply classes from different namespaces.
+
+However, we have to update our retriever:
+
+```c#
+// Before.
+public void GetData(OdbcConnection connection, string query)
+{
+    OdbcCommand command = new(query, connection);
+    OdbcDataReader reader = command.ExecuteReader();
+
+// After.
+// C# assembly System Data provides interface IDbConnection
+// as a generic means of establishing a connection to many databases.
+
+public void GetData(IDbConnection connection, string query)
+{
+    IDbCommand command = connection.CreateCommand();
+    command.CommandText = query;
+    IDataReader reader = command.ExecuteReader();
+```
+
+Great, our tests run successfully with this implementation!
+
+However, after implemeting interface IDbConnection, we might feel the level of abstraction of our connections is maybe too much.
+
+### Simpler implementation with switches
+
+Instead of relying on strategy classes, our `Connector` could just rely on `IDbConnection` and switch between cases:
+
+```c#
+public class Connector
+{
+    // Type of connector.
+    public enum ConnectorType
+    {
+        Odbc,
+        OleDb
+    }
+
+    // Properties.
+    public string ConnectionString { get; set; }
+    public IDbConnection Connection { get; set; }
+
+    // Constructor.
+    public Connector(ConnectorType connectorType, string databasePath)
+    {
+        ConnectionString = databasePath;
+        Connection = new OdbcConnection();
+
+        switch (connectorType)
+        {
+            case ConnectorType.Odbc:
+                ConnectionString = SetConnectionString(connectorType, databasePath);
+                Connection = SetConnection(connectorType);
+                OpenConnection(Connection);
+                break;
+
+            case ConnectorType.OleDb:
+                ConnectionString = SetConnectionString(connectorType, databasePath);
+                Connection = SetConnection(connectorType);
+                OpenConnection(Connection);
+                break;
+        }
+    }
+
+    public string SetConnectionString(ConnectorType connectorType, string databasePath)
+    {
+        switch (connectorType)
+        {
+            case ConnectorType.Odbc:
+                ConnectionString = @$"Driver=Microsoft Excel Driver (*.xls);DBQ={databasePath};";
+                break;
+            case ConnectorType.OleDb:
+                ConnectionString = $@"Provider=Microsoft.Jet.OLEDB.4.0;Data Source={databasePath};Extended Properties=Excel 8.0;";
+                break;
+        }
+        return ConnectionString;
+    }
+
+    public IDbConnection SetConnection(ConnectorType connectorType)
+    {
+        switch (connectorType)
+        {
+            case ConnectorType.Odbc:
+                Connection = new OdbcConnection(ConnectionString);
+                break;
+            case ConnectorType.OleDb:
+                Connection = new OleDbConnection(ConnectionString);
+                break;
+        }
+        return Connection;
+    }
+
+    public static void OpenConnection(IDbConnection connection)
+    {
+        try
+        {
+            connection.Open();
+            IDbCommand command = connection.CreateCommand();
+            command.CommandText = "SELECT * FROM [Sheet1$]";
+            IDataReader reader = command.ExecuteReader();
+        }
+
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error occured here: {ex.Message}");
+        }
+    }
+}
+```
+
+## 5. Extractor: binding everything together
+
+To trigger the program, we can create an `Extractor` class to bind our four main classes together: `Connector`, `Retriever`, `Formatter`, and `Writer`.
+
+```c#
+public class Extractor
+{
+    // Properties.
+    public Connector Connector { get; set; }
+    public Retriever Retriever { get; set; }
+    public Formatter Formatter { get; set; }
+    public Writer Writer { get; set; }
+
+    // Constructor.
+    [SupportedOSPlatform("windows")]
+    public Extractor(Connector.ConnectorType connectorType, string databasePath, string query, string outputPath)
+    {
+        Connector = new Connector(connectorType, databasePath);
+        Retriever = new Retriever(Connector.Connection, query);
+        Formatter = new Formatter(Retriever.Data, Retriever.NumberOfColumns);
+        Writer = new Writer(outputPath, Retriever.Headers, Formatter.FormattedData, Retriever.NumberOfColumns);
+    }
+
+    // Logger.
+    public static void Log(Writer writer)
+    {
+        Console.WriteLine($"Successful? {(writer.HasWrittenFile ? "YES" : "NO")}");
+    }
+
+    // Runner.
+    [SupportedOSPlatform("windows")]
+    public static void Main()
+    {
+        Connector.ConnectorType connectorType = Connector.ConnectorType.Odbc;
+        string databasePath = string.Empty;
+        string query = string.Empty;
+        string outputPath = string.Empty;
+
+        Extractor extractor = new Extractor(connectorType, databasePath, query, outputPath);
+        Log(extractor.Writer);
+    }
+}
+```
+
+We can now provide our input in the `Main()` function to obtain our output.
+
+## Conclusion
+
+Through this exercise, we've been able to:
+
+| Description | Skill |
+| --- | --- |
+| Introduce the concept of `ETL` by coding a simple application. |  |
+| We provided diagrams to better grasp the concept | Design |
