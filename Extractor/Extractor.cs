@@ -15,7 +15,12 @@ namespace Extractor
         public Extractor(Connector.ConnectorType connectorType, string databasePath, string query, string outputPath)
         {
             Connector = new Connector(connectorType, databasePath);
-            Retriever = new Retriever(Connector.Connection, query);
+
+            using (Connector.Connection)
+            {
+                Retriever = new Retriever(Connector.Connection, query);
+            }
+
             Formatter = new Formatter(Retriever.Data, Retriever.NumberOfColumns);
             Writer = new Writer(outputPath, Retriever.Headers, Formatter.FormattedData, Retriever.NumberOfColumns);
         }

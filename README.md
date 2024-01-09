@@ -71,10 +71,10 @@ Operations --> 2[Output, final state]
 In this exercise, we'll implement the following model to manipulate a simple `.xls` file via a C# program.
 
 Our objective is to be able to:
-1. Read the file.
+1. Read the `.xls` file.
 1. Retrieve its contents.
 1. Format some lines.
-1. Then output a new file.
+1. Then output a new `.xlsx` file (this will represent our target database).
 
 ```mermaid
 graph LR
@@ -127,7 +127,7 @@ Our test database (the `.xls` file) contains the following entries:
 
 ## The target 'DB'
 
-We want to be able to output a new `.xls` file with the name of each entry reversed and capitalized:
+Our target database (the new `.xls` file) should contain the name of each entry reversed and capitalized:
 
 |	ID	|	Name	|	Age	|	Occupation	|	Salary	|
 |	---	|	---	|	---	|	---	|	---	|
@@ -144,17 +144,17 @@ We want to be able to output a new `.xls` file with the name of each entry rever
 
 ## 1. Connector: read the file
 
-We start by defining a connector to connect to the database.
+Let's begin by defining a connector to connect to the database.
 
 ### Providers
 
 For this purpose, C# provides the assembly `System.Data`.
 
-Within this assembly, multiple namespaces (class groups) providing pre-defined classes are available.
+Within this assembly, multiple namespaces (or class groups) are available.
 
 The main ones are `System.Data.Odbc` and `System.Data.OleDb`.
 
-They can be used to connect to `Access`, `Excel`, `SQL` or `Oracle` files, among others.
+They provide pre-defined classes that help to connect to `Access`, `Excel`, `SQL` or `Oracle` files, among others.
 
 `Odbc` is more generic and older than `OleDb`, which is more Microsoft-oriented.
 
@@ -166,11 +166,11 @@ System.Data --> System.Data.OleDb
 
 #### ODBC
 
-Let's begin by testing an `Odbc` connection (`Open Database Connectivity`).
+Let's try to implement an `Odbc` connection (`Open Database Connectivity`).
 
-In a Windows environment, an ODBC manager is pre-installed (Start -> ODBC).
+In a Windows environment, an ODBC manager is pre-installed locally (Start -> ODBC).
 
-The ODBC manager uses drivers, or translators between our program and the queried database.
+The ODBC manager contains the drivers, or the translators that our program will rely on to interface with the source database.
 
 ```console
 # Check available local drivers via PowerShell.
@@ -182,9 +182,9 @@ Platform  : 32-bit
 Attribute : {[FileExtns, *.xls], [FileUsage, 1], [DriverODBCVer, 02.50], [CPTimeout, <non regroupé>]…}
 ```
 
-If the file being queried is old (before 2007), a 32-bit (x86) driver is often needed.
+If the database being queried is old (before 2007), a 32-bit (x86) driver is often needed.
 
-Since we will be using an `.xls` file (97-2003), this driver will do.
+Since we will be querying an `.xls` file (97-2003), this driver will do.
 
 For other extensions, a driver can be downloaded online.
 
@@ -609,7 +609,7 @@ Product Manager
 
 Once formatting has been applied, we usually load the data onto another database.
 
-For this exercise, let's output the formatted data into a new `.xls` file.
+For this exercise, let's output the formatted data into a new `.xlsx` file.
 
 ### Coding the writer
 
@@ -708,7 +708,7 @@ public class Writer
 
 ## Result
 
-We have successfully output a new file with the desired formatting:
+We have successfully output the new file with the desired formatting:
 
 |	ID	|	Name	|	Age	|	Occupation	|	Salary	|
 |	---	|	---	|	---	|	---	|	---	|
@@ -725,7 +725,7 @@ We have successfully output a new file with the desired formatting:
 
 However, integers are being output as strings, which is not accurate.
 
-We can try to refactor our code.
+Let's try to refactor the code.
 
 ## Refactoring
 
@@ -862,9 +862,15 @@ Let's try integrating an `interface`.
 
 ## Interface: IConnection
 
-Compared to a class, an `interface` contains methods that are not implemented.
+An `interface` is a model for a class.
 
-When an interface is assigned to a class, the class must implement them, like terms in a contract.
+It provides a list of methods mandatory for the class to implement.
+
+Imagine an `outfit` that a class puts on.
+
+Putting a certain outfit means behaving in a certain way.
+
+Classes can put on several outfits.
 
 ```c#
 public interface IConnection
@@ -877,9 +883,11 @@ public interface IConnection
 
 ### Strategy pattern
 
-To reuse our `Connector` class, let's try applying a `strategy` pattern.
+To reuse our `Connector` class, we can try applying a `strategy` pattern.
 
-We create two separate classes `OdbcStrategy` and `OleDbStrategy`,
+Like an `interface`, a `pattern` is a model that helps to solve a common programming problem.
+
+Based on a strategy pattern, we create two separate classes `OdbcStrategy` and `OleDbStrategy`,
 
 then use our `Connector` to filter depending on the `ConnectorType`:
 
@@ -1035,7 +1043,7 @@ public void GetData(IDbConnection connection, string query)
 
 Great, our tests run successfully with this implementation!
 
-However, after implemeting interface IDbConnection, we might feel the level of abstraction of our connections is maybe too much.
+However, after implemeting interface IDbConnection, we might feel the level of abstraction of our connections is maybe too high.
 
 ### Simpler implementation with switches
 
@@ -1141,7 +1149,13 @@ public class Extractor
     public Extractor(Connector.ConnectorType connectorType, string databasePath, string query, string outputPath)
     {
         Connector = new Connector(connectorType, databasePath);
-        Retriever = new Retriever(Connector.Connection, query);
+
+        // Close and dispose the connection after retrieval.
+        using (Connector.Connection)
+        {
+            Retriever = new Retriever(Connector.Connection, query);
+        }
+
         Formatter = new Formatter(Retriever.Data, Retriever.NumberOfColumns);
         Writer = new Writer(outputPath, Retriever.Headers, Formatter.FormattedData, Retriever.NumberOfColumns);
     }
@@ -1167,7 +1181,7 @@ public class Extractor
 }
 ```
 
-We can now provide our input in the `Main()` function to obtain our output.
+We can now provide our input in the `Main()` function, trigger our program and obtain the output.
 
 ## Conclusion
 
@@ -1176,9 +1190,9 @@ Through this exercise, we've been able to:
 | Description | Skill |
 | --- | --- |
 | Introduce the concept of `ETL`. | Synthesis |
-| Create diagrams to help convey meaning. | Design |
+| Create diagrams to help convey meaning. | Abstraction |
 | Code a simple program to apply the concept. | Application |
-| Break up the program into manageable classes. | Structure |
+| Break up the program into manageable classes. | Separation of concerns |
 | Introduce the concept of interfaces. | Synthesis |
 | Introduce the concept of the strategy design pattern. | Synthesis |
 | Practice test-driven development (test-code-refactor). | Application |
