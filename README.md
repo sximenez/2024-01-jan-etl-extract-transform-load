@@ -887,7 +887,7 @@ To reuse our `Connector` class, we can try applying a `strategy` pattern.
 
 Like an `interface`, a `pattern` is a model that helps to solve a common programming problem.
 
-Based on a strategy pattern, we create two separate classes `OdbcStrategy` and `OleDbStrategy`,
+Based on the strategy pattern, we create two separate classes `OdbcStrategy` and `OleDbStrategy`,
 
 then use our `Connector` to filter depending on the `ConnectorType`:
 
@@ -1150,7 +1150,7 @@ public class Extractor
     {
         Connector = new Connector(connectorType, databasePath);
 
-        // Close and dispose the connection after retrieval.
+        // Close and dispose of the connection after retrieval.
         using (Connector.Connection)
         {
             Retriever = new Retriever(Connector.Connection, query);
