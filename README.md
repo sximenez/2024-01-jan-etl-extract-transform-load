@@ -1175,5 +1175,10 @@ Through this exercise, we've been able to:
 
 | Description | Skill |
 | --- | --- |
-| Introduce the concept of `ETL` by coding a simple application. |  |
-| We provided diagrams to better grasp the concept | Design |
+| Introduce the concept of `ETL`. | Synthesis |
+| Create diagrams to help convey meaning. | Design |
+| Code a simple program to apply the concept. | Application |
+| Break up the program into manageable classes. | Structure |
+| Introduce the concept of interfaces. | Synthesis |
+| Introduce the concept of the strategy design pattern. | Synthesis |
+| Practice test-driven development (test-code-refactor). | Application |
