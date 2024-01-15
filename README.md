@@ -1,7 +1,7 @@
 # Extract, Transform, Load (ETL)
 
-<!--TOC-->
   - [Intro](#intro)
+  - [Context](#context)
   - [The source 'DB'](#the-source-db)
   - [The target 'DB'](#the-target-db)
   - [1. Connector: read the file](#1-connector-read-the-file)
@@ -26,7 +26,6 @@
     - [Simpler implementation with switches](#simpler-implementation-with-switches)
   - [5. Extractor: binding everything together](#5-extractor-binding-everything-together)
   - [Conclusion](#conclusion)
-<!--/TOC-->
 
 ## Intro
 
@@ -67,6 +66,8 @@ Operations
 1[Input, initial state] --> Operations
 Operations --> 2[Output, final state]
 ```
+
+## Context
 
 In this exercise, we'll implement the following model to manipulate a simple `.xls` file via a C# program.
 
